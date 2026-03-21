@@ -45,6 +45,16 @@ Scheduler.generate_plan() returns a Plan
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+Yes
+1) Originally owner assumes one pet. 
+owner.pet: Pet is a single object. If the scope ever grows to multiple pets, this becomes a breaking change. A list[Pet] from the start is safer, so made the change. 
+
+2) Scheduler lost its Pet reference
+In the original UML, Scheduler takes owner, pet, and tasks. Currently it only holds owner and tasks. Because Pet is already accessible via owner.pet, this is technically reachable (but it's implicit).
+
+3) Priority originally was an unvalidated string.
+Task.priority is typed as str but valid values are "low", "medium", "high". Nothing enforces this. When generate_plan() sorts by priority, a typo like "hig" silently misbehaves. So I Replaced it with an Enum ( LOW = 1, MEDIUM = 2, HIGH = 3) to make comparisons and sorting reliable.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

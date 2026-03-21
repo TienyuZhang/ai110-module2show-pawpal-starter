@@ -1,4 +1,11 @@
 from dataclasses import dataclass
+from enum import Enum
+
+
+class Priority(Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
 
 
 @dataclass
@@ -11,14 +18,14 @@ class Pet:
 class Task:
     title: str
     duration_minutes: int
-    priority: str  # "low", "medium", or "high"
+    priority: Priority
 
 
 @dataclass
 class Owner:
     name: str
     available_minutes_per_day: int
-    pet: Pet
+    pets: list[Pet]
 
 
 class Plan:
