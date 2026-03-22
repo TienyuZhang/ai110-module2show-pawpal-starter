@@ -90,6 +90,8 @@ python main.py
 
 <a href="/images/app_screenshot_2.png" target="_blank"><img src='images/app_screenshot_2.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>.
 
+<a href="/images/app_screenshot_3.png" target="_blank"><img src='images/app_screenshot_3.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>.
+
 ---
 
 ## How to Use the App
