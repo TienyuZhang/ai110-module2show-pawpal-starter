@@ -247,6 +247,56 @@ class Scheduler:
             result = [t for t in result if pet_names.get(t.title) == pet_name]
         return result
 
+    def _urgency_multiplier(self, task: Task) -> float:
+        """Return a multiplier based on how soon a task's due date is.
+
+        Overdue / today → 3.0   (most urgent)
+        1–3 days        → 2.0
+        4–7 days        → 1.5
+        >7 days / none  → 1.0   (no boost)
+        """
+        if task.due_date is None:
+            return 1.0
+        days = (task.due_date - date.today()).days
+        if days <= 0:
+            return 3.0
+        if days <= 3:
+            return 2.0
+        if days <= 7:
+            return 1.5
+        return 1.0
+
+    def task_score(self, task: Task) -> float:
+        """Composite score = priority value × urgency multiplier."""
+        return task.priority.value * self._urgency_multiplier(task)
+
+    def generate_weighted_plan(self) -> Plan:
+        """Schedule by composite score (priority × urgency) instead of raw priority.
+
+        A LOW-priority task due today (score=3.0) will be scheduled ahead of a
+        MEDIUM-priority task with no due date (score=2.0), reflecting real-world
+        pet-care urgency rather than a fixed label hierarchy.
+        """
+        budget = self.owner.available_minutes_per_day
+        candidates = sorted(
+            self.get_all_tasks(),
+            key=lambda t: self.task_score(t),
+            reverse=True,
+        )
+
+        scheduled = []
+        skipped = []
+        time_used = 0
+
+        for task in candidates:
+            if time_used + task.duration_minutes <= budget:
+                scheduled.append(task)
+                time_used += task.duration_minutes
+            else:
+                skipped.append(task)
+
+        return Plan(scheduled, skipped)
+
     def generate_plan(self) -> Plan:
         """Greedily schedule pending tasks by priority until the time budget is exhausted."""
         budget = self.owner.available_minutes_per_day
