@@ -101,10 +101,18 @@ The cost of a false block is higher than a false pass. Missing a medication beca
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used AI tools, particularly Claude Code, throughout multiple stages of the project, including system design, implementation, UI and backend integration, algorithm refinement, as well as testing and verification. The tool was especially helpful for iterating on ideas, identifying issues, and improving overall code quality.
+
+The most effective prompts were those that clearly described the project context, the specific problem I was trying to solve, and my intended goals or requirements. Providing detailed background and expected outcomes consistently led to more relevant and useful responses.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+During the system design phase, the AI suggested modeling the relationship between owner and pet as a one-to-one relationship, meaning each owner could have only one pet and each pet would have a single owner. I did not accept this suggestion as-is because it did not align with real-world use cases.
+
+I evaluated the suggestion by considering the practical needs of the application and typical user scenarios. In reality, many owners have multiple pets, and supporting this would make the application more useful and flexible. Based on this reasoning, I revised the relationship to a one-to-many model, where a single owner can have multiple pets, while each pet is associated with one owner.
 
 ---
 
@@ -115,10 +123,60 @@ The cost of a false block is higher than a false pass. Missing a medication beca
 - What behaviors did you test?
 - Why were these tests important?
 
+The 13 tests are organized into four groups:
+
+1. Task & Pet basics
+mark_complete() flips completed from False to True
+add_task() increments a pet's task count
+
+2. Sorting
+Three tasks added out of order are returned in 07:00 → 12:00 → 18:00 order
+A single-task list passes through unchanged (guards against off-by-one or empty-list bugs)
+
+3. Recurrence
+A "daily" task produces a follow-up due exactly today + 1 day, with completed=False
+A "weekly" task produces a follow-up due exactly today + 7 days
+An "as needed" task completes silently — no new task is added, return value is None
+
+4. Conflict detection & scheduling edge cases
+Two overlapping tasks produce one warning naming both tasks
+Two tasks at the exact same start time are caught (the sharpest edge case)
+Sequential tasks that share an endpoint (07:00–07:30 then 07:30) produce no false warning
+A pet with zero tasks yields an empty plan without crashing
+A task that exactly fills the budget is scheduled (tests the <= boundary, not <)
+A task longer than the entire budget lands in skipped_tasks, not scheduled_tasks
+
+Why: 
+Each group targets a specific failure mode that would be invisible without a test. The risk being caught by each group: 
+
+- Basics: Regression — if mark_complete() or add_task() breaks, everything downstream silently fails
+- Sorting: Wrong display order; users might miss a task or misread the schedule
+- Recurrence:Off-by-one in timedelta; a medication reminder lands on the wrong day
+- "as needed" case: A one-off vet visit accidentally spawns infinite follow-ups
+- Conflict detection: A real overlap goes unreported, or a non-overlapping pair gets a false warning
+- Budget boundary (<=):	A task that fits exactly gets incorrectly skipped — a subtle < vs <= bug
+- Empty pet: The app crashes when a user has no tasks yet — a common first-run state
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+High confidence in the core behaviors — the 13 passing tests cover the most critical paths:
+
+- The greedy algorithm correctly fills the budget and skips what doesn't fit
+- - Priority ordering is enforced by the Enum integer values, which are unambiguous
+- Recurrence dates are calculated by timedelta, not manual arithmetic, so they're reliable
+- Conflict detection uses a standard interval overlap formula that is mathematically correct
+
+Moderate confidence in the areas that are tested but only at the boundaries — the sorting, filtering, and conflict logic work for the scenarios we wrote, but the test data is relatively simple (2–3 tasks, one pet, clean times).
+
+Lower confidence in multi-pet interactions and any behavior that involves the Streamlit session layer — those paths are covered by manual testing only, not automated tests.
+
+Edge Cases to Test Next:
+All tasks already completed — common real-world state (end of day), easy to hit accidentally
+Owner with zero pets — the very first app state before any setup, should never crash
+Title collision in filter_tasks() — a silent correctness bug that returns wrong data with no error
 
 ---
 
@@ -128,10 +186,16 @@ The cost of a false block is higher than a false pass. Missing a medication beca
 
 - What part of this project are you most satisfied with?
 
+The part I am most satisfied with is the task scheduling component. This area involved some of the most critical algorithms in the project, including sorting, recurrence handling, and conflict detection. The design decisions here were essential to the overall success of the system, as they directly impacted reliability and user experience. With the support of AI tools, I was able to refine these algorithms and improve both their correctness and efficiency.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+If I had another iteration, I would spend more time improving the UI design. While the core functionality is solid, a more polished and user-friendly interface would enhance the overall user experience and make the application more intuitive.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+One important lesson I learned is that AI does not always provide the perfect solution or the best fit for a given problem or real user needs. It is important to critically evaluate AI-generated suggestions and make independent decisions based on context, requirements, and user experience considerations.
