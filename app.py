@@ -10,9 +10,17 @@ st.divider()
 
 # --- Session State Initialization ---
 if "owner" not in st.session_state:
-    st.session_state.owner = None
+    try:
+        st.session_state.owner = Owner.load_from_json()
+    except (FileNotFoundError, KeyError, ValueError):
+        st.session_state.owner = None
 
 PRIORITY_MAP = {"low": Priority.LOW, "medium": Priority.MEDIUM, "high": Priority.HIGH}
+PRIORITY_EMOJI = {
+    "HIGH":   "🔴 High",
+    "MEDIUM": "🟡 Medium",
+    "LOW":    "🟢 Low",
+}
 
 # ── Section 1: Owner & Pet Setup ──────────────────────────────────────────────
 st.subheader("1. Owner & Pet Setup")
@@ -26,6 +34,7 @@ if st.button("Save owner & pet"):
     pet = Pet(name=pet_name, species=species)
     owner = Owner(name=owner_name, available_minutes_per_day=int(available_time), pets=[pet])
     st.session_state.owner = owner
+    owner.save_to_json()
     st.success(f"Saved! {owner_name} is caring for {pet_name} ({species}) with {available_time} min today.")
 
 st.divider()
@@ -54,26 +63,26 @@ if st.button("Add task"):
             time=task_time,
         )
         st.session_state.owner.pets[0].add_task(task)
+        st.session_state.owner.save_to_json()
         st.success(f"Added: **{task_title}** at {task_time} ({duration} min, {priority_str} priority)")
 
-# Display tasks sorted by time using Scheduler.sort_by_time()
+# Display tasks sorted by priority then time
 owner = st.session_state.owner
 if owner and owner.all_tasks():
     scheduler = Scheduler(owner=owner)
-    sorted_tasks = scheduler.sort_by_time(owner.all_tasks())
 
-    st.markdown("**Current tasks** (sorted by start time):")
+    st.markdown("**Current tasks** (sorted by priority, then start time):")
     st.table([
         {
             "Pet":          pet.name,
             "Start":        t.time,
             "Task":         t.title,
             "Duration":     f"{t.duration_minutes} min",
-            "Priority":     t.priority.name,
+            "Priority":     PRIORITY_EMOJI[t.priority.name],
             "Done":         "✓" if t.completed else "",
         }
         for pet in owner.pets
-        for t in scheduler.sort_by_time(pet.tasks)
+        for t in scheduler.sort_by_priority_then_time(pet.tasks)
     ])
 
     # Surface conflict warnings immediately after the task table
@@ -121,7 +130,7 @@ if st.button("Generate schedule"):
             for t in plan.scheduled_tasks:
                 rows.append({
                     "Task":         t.title,
-                    "Priority":     t.priority.name,
+                    "Priority":     PRIORITY_EMOJI[t.priority.name],
                     "Start (min)":  time_elapsed,
                     "End (min)":    time_elapsed + t.duration_minutes,
                     "Duration":     f"{t.duration_minutes} min",
@@ -132,4 +141,4 @@ if st.button("Generate schedule"):
         if plan.skipped_tasks:
             st.markdown("**Skipped (not enough time):**")
             for t in plan.skipped_tasks:
-                st.warning(f"⏭️ **{t.title}** [{t.priority.name}] needs {t.duration_minutes} min")
+                st.warning(f"⏭️ **{t.title}** {PRIORITY_EMOJI[t.priority.name]} needs {t.duration_minutes} min")

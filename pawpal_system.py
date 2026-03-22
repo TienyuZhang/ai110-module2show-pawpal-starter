@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -26,6 +27,31 @@ class Task:
     def reset(self):
         """Reset this task to incomplete."""
         self.completed = False
+
+    def to_dict(self) -> dict:
+        """Serialize this task to a JSON-compatible dictionary."""
+        return {
+            "title": self.title,
+            "duration_minutes": self.duration_minutes,
+            "priority": self.priority.name,
+            "frequency": self.frequency,
+            "completed": self.completed,
+            "time": self.time,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Task":
+        """Reconstruct a Task from a dictionary produced by to_dict()."""
+        return cls(
+            title=data["title"],
+            duration_minutes=data["duration_minutes"],
+            priority=Priority[data["priority"]],
+            frequency=data["frequency"],
+            completed=data["completed"],
+            time=data["time"],
+            due_date=date.fromisoformat(data["due_date"]) if data["due_date"] else None,
+        )
 
     def next_occurrence(self) -> "Task":
         """Return a fresh copy of this task due on the next recurrence date."""
@@ -64,6 +90,22 @@ class Pet:
         """Return tasks that have not been completed."""
         return [t for t in self.tasks if not t.completed]
 
+    def to_dict(self) -> dict:
+        """Serialize this pet to a JSON-compatible dictionary."""
+        return {
+            "name": self.name,
+            "species": self.species,
+            "tasks": [t.to_dict() for t in self.tasks],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Pet":
+        """Reconstruct a Pet from a dictionary produced by to_dict()."""
+        pet = cls(name=data["name"], species=data["species"])
+        for t in data["tasks"]:
+            pet.tasks.append(Task.from_dict(t))
+        return pet
+
 
 @dataclass
 class Owner:
@@ -82,6 +124,34 @@ class Owner:
     def all_pending_tasks(self) -> list[Task]:
         """Collect only incomplete tasks across all pets."""
         return [task for pet in self.pets for task in pet.pending_tasks()]
+
+    def to_dict(self) -> dict:
+        """Serialize this owner to a JSON-compatible dictionary."""
+        return {
+            "name": self.name,
+            "available_minutes_per_day": self.available_minutes_per_day,
+            "pets": [p.to_dict() for p in self.pets],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Owner":
+        """Reconstruct an Owner from a dictionary produced by to_dict()."""
+        return cls(
+            name=data["name"],
+            available_minutes_per_day=data["available_minutes_per_day"],
+            pets=[Pet.from_dict(p) for p in data["pets"]],
+        )
+
+    def save_to_json(self, path: str = "data.json") -> None:
+        """Write the owner (and all pets/tasks) to a JSON file."""
+        with open(path, "w") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @classmethod
+    def load_from_json(cls, path: str = "data.json") -> "Owner":
+        """Load and reconstruct an Owner from a JSON file saved by save_to_json()."""
+        with open(path) as f:
+            return cls.from_dict(json.load(f))
 
 
 class Plan:
@@ -162,6 +232,10 @@ class Scheduler:
     def sort_by_time(self, tasks: list[Task]) -> list[Task]:
         """Sort tasks by their preferred start time in ascending HH:MM order."""
         return sorted(tasks, key=lambda t: t.time)
+
+    def sort_by_priority_then_time(self, tasks: list[Task]) -> list[Task]:
+        """Sort tasks by priority descending (HIGH first), then by start time ascending."""
+        return sorted(tasks, key=lambda t: (-t.priority.value, t.time))
 
     def filter_tasks(self, tasks: list[Task], completed: bool | None = None, pet_name: str | None = None) -> list[Task]:
         """Filter tasks by completion status and/or pet name."""
